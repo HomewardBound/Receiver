@@ -1,0 +1,14 @@
+{
+  "name": "receiver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "mocha test/*.js"
+  },
+  "author": "Brian Broll",
+  "license": "ISC",
+  "dependencies": {
+    "mocha": "^2.1.0"
+  }
+}
