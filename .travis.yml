@@ -2,6 +2,7 @@ language: node_js
 node_js:
 - '0.11'
 - '0.10'
+before_script: git status
 env:
   global:
   - secure: RIP7HX9epudSTPIMq/PO2w0IVCRcBUi4B3zJSK5R0xWKzFsBTNTz8EM2UAXKBjO+mL9nlZZR7D//W9m00vM1b/0GmD7TR0T4OVC6aC1cx14fhRCleU/eYmdlNZa7JXGtAWcqUi6uvI/SGnyD1mGliobCmVqxSrI8KDDQA3tZ1wk=
