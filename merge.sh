@@ -12,7 +12,8 @@ if [ "$CURRENT_BRANCH" = "$FROM_BRANCH" ] ; then
     git checkout $FROM_BRANCH && \
     echo "Checking out $TO_BRANCH..." && \
     git fetch && \
-    git status && \
+    echo "Branches recognized " && \
+    git branch -a && \
     git checkout $TO_BRANCH && \
     echo "Merging changes..." && \
     git merge $FROM_BRANCH && \
