@@ -11,6 +11,7 @@ echo "current branch is '$CURRENT_BRANCH'"
 if [ "$CURRENT_BRANCH" = "$FROM_BRANCH" ] ; then
     git checkout $FROM_BRANCH && \
     echo "Checking out $TO_BRANCH..." && \
+    git pull origin $TO_BRANCH && \
     git checkout $TO_BRANCH && \
     echo "Merging changes..." && \
     git merge $FROM_BRANCH && \
