@@ -1,6 +1,8 @@
 language: node_js
 node_js:
-    - "0.11"
-    - "0.10"
-    - iojs
-    - iojs-v1.0.2
+- '0.11'
+- '0.10'
+env:
+  global:
+  - secure: RIP7HX9epudSTPIMq/PO2w0IVCRcBUi4B3zJSK5R0xWKzFsBTNTz8EM2UAXKBjO+mL9nlZZR7D//W9m00vM1b/0GmD7TR0T4OVC6aC1cx14fhRCleU/eYmdlNZa7JXGtAWcqUi6uvI/SGnyD1mGliobCmVqxSrI8KDDQA3tZ1wk=
+  - secure: A2wOy7y3iZ8nTQyVQS+YNVqcwFNxQA/IGCjPqvVRrlk/sOndlhr/Due0mAZmpW5YFq5SU+eeUQPY3Hg1xi/tzpDB6ugoRWwg4N1PER2z6jusUMtfmTESQ082wxjPjzBSIb8TRbI1NcDuiR7fE4370ju9xKZxTxYtFzLk9H8sKA8=
