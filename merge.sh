@@ -1,9 +1,10 @@
 #! /bin/bash
 # Merge pushes to dev to master branch
+export PAGER=cat
 GIT_USER="$2"
 GIT_PASS="$3"
 
-CURRENT_BRANCH=$(git status | head -n1 | cut -d" " -f3)
+CURRENT_BRANCH=$(git log -n 1 --pretty=%d HEAD | cut -d"," -f3 | cut -d" " -f2 | cut -d")" -f1)
 FROM_BRANCH="dev"
 TO_BRANCH="master"
 echo "current branch is '$CURRENT_BRANCH'"
@@ -23,3 +24,4 @@ if [ "$CURRENT_BRANCH" = "$FROM_BRANCH" ] ; then
 else
     echo "Not on $FROM_BRANCH. Skipping merge"
 fi
+
