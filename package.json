@@ -9,6 +9,7 @@
   "author": "Brian Broll",
   "license": "ISC",
   "dependencies": {
-    "mocha": "^2.1.0"
+    "mocha": "^2.1.0",
+    "throng": "^1.0.0"
   }
 }
