@@ -10,7 +10,7 @@ var assert = require('assert'),
     SERVER_ADDRESS = 'tcp://127.0.0.1:2001',
 
     app,
-    testConfigFileName = __dirname + '/config.test.js',
+    testConfigFileName = __dirname + '/__config.test.js',
     calcSocket,
     calculationReq,
     postOptions,
@@ -51,10 +51,11 @@ describe('Testing Receiver', function() {
 
     describe('Basic HTTP communication', function() {
 
-        it.only('should accept post messages to /', function(done) {
+        it('should accept post messages to /', function(done) {
             console.log('sending post message to '+postOptions.host+':'+app.config.port);
             var post_req = http.request(postOptions, function(res) {
                 console.log('response is ',res.statusCode);
+                assert(res.statusCode);
                 done();
             });
             post_req.end();
