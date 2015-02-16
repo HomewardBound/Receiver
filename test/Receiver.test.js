@@ -7,23 +7,32 @@ var assert = require('assert'),
     http = require('http'),
     fs = require('fs'),
     Receiver = require('../lib/Receiver.js'),
-    SERVER_ADDRESS = 'tcp://127.0.0.1:2001',
 
     app,
     testConfigFileName = __dirname + '/__config.test.js',
-    calcSocket,
     calculationReq,
     postOptions,
     receiver;
 
-var createSubscriber = function(channel, callback) {
-        calcSocket = zeromq.socket('sub');
-        calcSocket.connect(SERVER_ADDRESS);
-        calcSocket.subscribe(channel);
-        calcSocket.on('message', callback);
+// Simulating related apps
+var createSubscriber = function(address, channel) {
+    var subscriber = zeromq.socket('sub');
+    subscriber.connect(address);
+    subscriber.subscribe(channel);
+    return subscriber;
+};
+
+var createPublisher = function(address) {
+    var publisher = zeromq.socket('pub');
+    publisher.bindSync(address);
+    return publisher;
 };
 
 describe('Testing Receiver', function() {
+    var calcChannel,
+        computationPub,
+        phoneApp;
+
     before(function() {
         // Create the test config
         // Get the default config
@@ -35,9 +44,13 @@ describe('Testing Receiver', function() {
         // Save it to test file
         fs.writeFileSync(testConfigFileName, JSON.stringify(defaultConfig));
 
+        computationPub = createPublisher(defaultConfig.storageRequestBroker);
+
         // Create the server with test configuration
         app = new Receiver(testConfigFileName);
         app.start();
+
+        phoneApp = createSubscriber(app.config.notifyBroker, '');  // Listen for any dog request
     });
 
     beforeEach(function() {
@@ -47,83 +60,141 @@ describe('Testing Receiver', function() {
             method: 'POST',
             path: '/'
         };
+        calcChannel = app.createCalculationMsg('').split('""')[0];  // Extract the topic
     });
 
-    describe('Basic HTTP communication', function() {
+    describe('Initial Message Reception', function() {
 
-        it('should accept post messages to /', function(done) {
-            console.log('sending post message to '+postOptions.host+':'+app.config.port);
+        it('should accept urlencoded post messages to /', function(done) {
             var post_req = http.request(postOptions, function(res) {
-                console.log('response is ',res.statusCode);
                 assert(res.statusCode);
                 done();
             });
             post_req.end();
         });
 
-    });
-
-    it('should pass incoming json measurements to computation apps', function(done) {
-        var calcChannel = app.createCalculationMsg(''),
-            calcMsgReceived = false,
+        it('should pass incoming json measurements to computation apps', function(done) {
+            var calcMsgReceived = false,
             checkMsgReceived = function() {
                 assert(calcMsgReceived, 'Publish message not received');
                 done();
             };
 
-        createSubscriber(calcChannel, function(data) {
-            calcMsgReceived = true;
+            var subscriber = createSubscriber(app.config.calcRequestBroker, calcChannel);
+            subscriber.on('message', function(data) {
+                calcMsgReceived = true;
+            });
+
+            // Modify postOptions
+            var post_data = {uuid: '134asd443',
+                latitude: 81.218, 
+                longitude: 123.2112};
+                postOptions.headers = {'Content-Type': 'application/json',
+                    'Content-Length': JSON.stringify(post_data).length};
+
+                    var post_req = http.request(postOptions, function(res) {
+                        setTimeout(checkMsgReceived, 100);
+                    });
+                    post_req.write(JSON.stringify(post_data));
+                    post_req.end();
         });
 
-        // Modify postOptions
-        var post_data = {uuid: '134asd443',
-                         latitude: 81.218, 
-                         longitude: 123.2112};
-        postOptions.headers = {'Content-Type': 'application/json',
-            'Content-Length': JSON.stringify(post_data).length};
-
-        var post_req = http.request(postOptions, function(res) {
-            setTimeout(checkMsgReceived, 100);
-        });
-        post_req.write(JSON.stringify(post_data));
-        post_req.end();
-    });
-
-    it('should pass incoming measurements to computation apps', function(done) {
-        var calcChannel = app.createCalculationMsg(''),
-            calcMsgReceived = false,
+        it('should pass incoming measurements to computation apps', function(done) {
+            var calcMsgReceived = false,
             checkMsgReceived = function() {
                 assert(calcMsgReceived, 'Publish message not received');
                 done();
+            },
+            subscriber = createSubscriber(app.config.calcRequestBroker, calcChannel); 
+
+            subscriber.on('message', function(data) {
+                calcMsgReceived = true;
+            });
+
+            // Modify postOptions
+            var post_data = 'uuid=134asd443&latitude=81.218&longitude=123.2112';
+            postOptions.headers = {'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': post_data.length};
+
+                var post_req = http.request(postOptions, function(res) {
+                    setTimeout(checkMsgReceived, 100);
+                });
+                post_req.write(post_data);
+                post_req.end();
+        });
+
+    });
+
+    describe('Receiver.Storage test', function() {
+        it('should submit message to client apps on storage of measurement', function(done) {
+            var testMeasurement = {uuid: 'test', 
+                                   latitude: 120, 
+                                   longitude: 122, 
+                                   radius: 120, 
+                                   timestamp: new Date().getTime()},
+                receivedMsg = false;
+
+            phoneApp.on('message', function(data) {
+                receivedMsg = true;
+            });
+
+            computationPub.send('StoreMeasurement '+JSON.stringify(testMeasurement));
+
+            var verify = function() {
+                assert(receivedMsg, 'Did not receive pet location on storage');
+                done();
             };
 
-        createSubscriber(calcChannel, function(data) {
-            calcMsgReceived = true;
+            setTimeout(verify, 200);
         });
 
-        // Modify postOptions
-        var post_data = 'uuid=134asd443&latitude=81.218&longitude=123.2112';
-        postOptions.headers = {'Content-Type': 'application/x-www-form-urlencoded',
-            'Content-Length': post_data.length};
+        it('should send notifications to owners', function(done) {
+            var msg = {uuid: 'Spot', 
+                       latitude: 120, 
+                       longitude: 122, 
+                       radius: 120, 
+                       timestamp: new Date().getTime()},
+                receivedMsg = false,
+                p1App = createSubscriber(app.config.notifyBroker, 'Spot');
 
-        var post_req = http.request(postOptions, function(res) {
-            setTimeout(checkMsgReceived, 100);
+            p1App.on('message', function(data) {
+                assert(true);  // p2App doesn't care about Fido
+                done();
+            });
+
+            computationPub.send('StoreMeasurement '+JSON.stringify(msg));
         });
-        post_req.write(post_data);
-        post_req.end();
-    });
 
-    // Check if it is a pet
-    it('should verify that the measurement is a valid entity', function() {
-        assert(false, 'Need to write this test');
-    });
+        it('should not send notifications to non-owners', function(done) {
+            var msg = {uuid: 'Fido', 
+                       latitude: 120, 
+                       longitude: 122, 
+                       radius: 120, 
+                       timestamp: new Date().getTime()},
+                receivedMsg = false,
+                p1App = createSubscriber(app.config.notifyBroker, 'Spot');
 
-    it('should store measurement from computation apps', function() {
-        assert(false, 'Need to write this test');
-    });
+            p1App.on('message', function(data) {
+                assert(false);  // p2App doesn't care about Fido
+            });
 
-    it('should submit message to client apps on storage of measurement', function() {
-        assert(false, 'Need to write this test');
+            computationPub.send('StoreMeasurement '+JSON.stringify(msg));
+            setTimeout(done, 200);
+        });
+
+        it('should dynamically subscribe to computation app on config change', function() {
+            assert(false, 'Need to write this test');
+        });
+
+        it('should store measurement from computation apps', function() {
+            assert(false, 'Need to write this test');
+        });
+
+        // Check if it is a pet
+        it('should verify that the measurement is a valid entity', function() {
+            assert(false, 'Need to write this test');
+        });
+
     });
 
     after(function() {

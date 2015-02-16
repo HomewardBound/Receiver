@@ -25,38 +25,53 @@ describe('Testing ConfigManager', function() {
     });
 
     it('should create default config if file doesn\'t exist', function() {
-        ConfigManager.watch(configFilename, config);
+        var configManager = new ConfigManager({filename: configFilename, config: config});
         assert(config.port);
     });
 
     it('should save generated default config if none provided', function() {
-        ConfigManager.watch(configFilename, config);
+        var configManager = new ConfigManager({filename: configFilename, config: config});
         assert(fs.existsSync(configFilename), 'New config not saved');
     });
 
     it('should load initial configuration', function() {
         saveConfig({port:7079});
-        ConfigManager.watch(configFilename, config);
+        var configManager = new ConfigManager({filename: configFilename, config: config});
         assert(config.port === 7079, 'Initial configuration not loaded');
     });
 
     it('should update configuration fields on file change', function(done) {
         saveConfig({port:7079});
-        ConfigManager.watch(configFilename, config);
-        saveConfig({port:7077});
-        setTimeout(function() { assert(config.port === 7077); done();}, 150);
+        var updateNum = 0,
+            configManager = new ConfigManager({filename: configFilename, 
+                                               config: config,
+                                               onUpdate: function(config) {
+                                                   assert(config.port === 7077 || ++updateNum === 1, 
+                                                       'config.port should be 7077 but was '+config.port); 
+                                                   done();
+                                                } });
+
+        setTimeout(saveConfig, 100, {port:7077});
     });
 
     it('should remove configuration fields on file edit', function(done) {
         saveConfig({old: true, port:7079});
-        ConfigManager.watch(configFilename, config);
+        var updateCount = 0,  // Skip the initial update
+            options = {filename: configFilename, config: config},
+            configManager;
+
+        options.onUpdate = function(config) {
+            assert(config.old === undefined || ++updateCount === 1, 'config.old still exists in the config'); 
+            done();
+        };
+
+        configManager = new ConfigManager(options);
         saveConfig({port:7079});
-        setTimeout(function() { assert(config.old === undefined); done();}, 150);
     });
 
     it('should not update configuration if file contains syntax error', function(done) {
         saveConfig({port:7079});
-        ConfigManager.watch(configFilename, config);
+        var configManager = new ConfigManager({filename: configFilename, config: config});
         fs.writeFileSync(configFilename, '{ asdf..clalldl;a');
         setTimeout(function() { assert(config.port === 7079); done();}, 150);
     });
