@@ -29,14 +29,14 @@ var createPublisher = function(address) {
 };
 
 describe('Testing Receiver', function() {
-    var calcChannel,
-        computationPub,
-        phoneApp;
+    var defaultConfig,
+        calcChannel,
+        computationPub;
 
     before(function() {
         // Create the test config
         // Get the default config
-        var defaultConfig = JSON.parse(fs.readFileSync(__dirname+'/../lib/config.default.js', 'utf-8'));
+        defaultConfig = JSON.parse(fs.readFileSync(__dirname+'/../lib/config.default.js', 'utf-8'));
 
         // Change the port
         defaultConfig.port = 8080;
@@ -50,7 +50,6 @@ describe('Testing Receiver', function() {
         app = new Receiver(testConfigFileName);
         app.start();
 
-        phoneApp = createSubscriber(app.config.notifyBroker, '');  // Listen for any dog request
     });
 
     beforeEach(function() {
@@ -123,6 +122,12 @@ describe('Testing Receiver', function() {
                 post_req.end();
         });
 
+        it('should update publisher socket on config update', function(done) {
+            var config = defaultConfig;
+            config.calcRequestBroker = 'tcp://127.0.0.1:2009';
+            fs.writeFileSync(testConfigFileName, JSON.stringify(config));
+            setTimeout(done, 150);
+        });
     });
 
     describe('Receiver.Storage test', function() {
@@ -132,7 +137,8 @@ describe('Testing Receiver', function() {
                                    longitude: 122, 
                                    radius: 120, 
                                    timestamp: new Date().getTime()},
-                receivedMsg = false;
+                receivedMsg = false,
+                phoneApp = createSubscriber(app.config.notifyBroker, '');  // Listen for any dog request
 
             phoneApp.on('message', function(data) {
                 receivedMsg = true;
@@ -181,6 +187,65 @@ describe('Testing Receiver', function() {
             computationPub.send('StoreMeasurement '+JSON.stringify(msg));
             setTimeout(done, 200);
         });
+
+        it('should update subscriber socket on config update', function(done) {
+            var config = defaultConfig,
+                msg = {uuid: 'Einstein', 
+                       latitude: 120, 
+                       longitude: 122, 
+                       radius: 120, 
+                       timestamp: new Date().getTime()},
+                p1App = createSubscriber(app.config.notifyBroker, 'Einstein'),
+                newComputationPub,
+                checkFn = function() {
+                    computationPub.send('StoreMeasurement '+JSON.stringify(msg));
+                    msg.radius = 999;
+                    newComputationPub.send('StoreMeasurement '+JSON.stringify(msg));
+                };
+
+            p1App.on('message', function(data) {
+                assert(data.toString().indexOf(999) > -1, 'Receiver subscribed to old computation publisher');  // p2App doesn't care about Fido
+                done();
+            });
+
+            config.storageRequestBroker = 'tcp://127.0.0.1:2099';
+            fs.writeFileSync(testConfigFileName, JSON.stringify(config));
+            newComputationPub = createPublisher(config.storageRequestBroker);
+            setTimeout(checkFn, 400);
+        });
+
+        /*
+        it('should not receive multiple notify messages', function(done) {
+            this.timeout(7999);
+            var config = defaultConfig,
+                msg = {uuid: 'Einstein', 
+                       latitude: 120, 
+                       longitude: 122, 
+                       radius: 120, 
+                       timestamp: new Date().getTime()},
+                p1App = createSubscriber(app.config.notifyBroker, 'Einstein'),
+                newComputationPub,
+                checkFn = function() {
+                    console.log('sending measurements');
+                    computationPub.send('StoreMeasurement '+JSON.stringify(msg));
+                    msg.radius = 999;
+                    newComputationPub.send('StoreMeasurement '+JSON.stringify(msg));
+                };
+
+            p1App.on('message', function(data) {
+                console.log('Received message: '+ data);
+                assert(data.toString().indexOf(999) > -1, 'Receiver subscribed to old computation publisher');  // p2App doesn't care about Fido
+                done();
+            });
+
+            //config.storageRequestBroker = 'tcp://127.0.0.1:2004';
+            config.storageRequestBroker = 'tcp://127.0.0.1:2009';
+            fs.writeFileSync(testConfigFileName, JSON.stringify(config));
+            //setTimeout(fs.writeFileSync, 1000, testConfigFileName, JSON.stringify(config));
+            newComputationPub = createPublisher(config.storageRequestBroker);
+            setTimeout(checkFn, 300);
+        });
+        */
 
         it('should dynamically subscribe to computation app on config change', function() {
             assert(false, 'Need to write this test');
