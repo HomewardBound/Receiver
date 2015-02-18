@@ -88,7 +88,7 @@ describe('Testing Receiver', function() {
             var post_data = {uuid: '134asd443',
                 latitude: 81.218, 
                 longitude: 123.2112};
-                postOptions.headers = {'Content-Type': 'application/json',
+            postOptions.headers = {'Content-Type': 'application/json',
                     'Content-Length': JSON.stringify(post_data).length};
 
                     var post_req = http.request(postOptions, function(res) {
@@ -214,40 +214,7 @@ describe('Testing Receiver', function() {
             setTimeout(checkFn, 400);
         });
 
-        /*
-        it('should not receive multiple notify messages', function(done) {
-            this.timeout(7999);
-            var config = defaultConfig,
-                msg = {uuid: 'Einstein', 
-                       latitude: 120, 
-                       longitude: 122, 
-                       radius: 120, 
-                       timestamp: new Date().getTime()},
-                p1App = createSubscriber(app.config.notifyBroker, 'Einstein'),
-                newComputationPub,
-                checkFn = function() {
-                    console.log('sending measurements');
-                    computationPub.send('StoreMeasurement '+JSON.stringify(msg));
-                    msg.radius = 999;
-                    newComputationPub.send('StoreMeasurement '+JSON.stringify(msg));
-                };
-
-            p1App.on('message', function(data) {
-                console.log('Received message: '+ data);
-                assert(data.toString().indexOf(999) > -1, 'Receiver subscribed to old computation publisher');  // p2App doesn't care about Fido
-                done();
-            });
-
-            //config.storageRequestBroker = 'tcp://127.0.0.1:2004';
-            config.storageRequestBroker = 'tcp://127.0.0.1:2009';
-            fs.writeFileSync(testConfigFileName, JSON.stringify(config));
-            //setTimeout(fs.writeFileSync, 1000, testConfigFileName, JSON.stringify(config));
-            newComputationPub = createPublisher(config.storageRequestBroker);
-            setTimeout(checkFn, 300);
-        });
-        */
-
-        it('should dynamically subscribe to computation app on config change', function() {
+        it('should connect to mongodb', function(done) {
             assert(false, 'Need to write this test');
         });
 
@@ -256,7 +223,33 @@ describe('Testing Receiver', function() {
         });
 
         // Check if it is a pet
-        it('should verify that the measurement is a valid entity', function() {
+        it.only('should not accept measurement with invalid structure', function(done) {
+            var msg = {uuid: 'Spot',
+                       latitude: 12,
+                       longitude: 120,
+                       timestamp: new Date().getTime()},
+                post_req;
+
+            postOptions.headers = {'Content-Type': 'application/json',
+                    'Content-Length': JSON.stringify(msg).length};
+
+            post_req = http.request(postOptions, function(res) {
+                assert(res.statusCode !== 200);
+                done();
+            });
+            post_req.write(JSON.stringify(msg));
+            post_req.end();
+        });
+
+        it('should not accept measurement whose target doesn\'t exist in the db', function() {
+            assert(false, 'Need to write this test');
+        });
+
+        it('should not accept measurement whose target is not marked as missing in the db', function() {
+            assert(false, 'Need to write this test');
+        });
+
+        it('should verify that the measurement target is marked as missing in the db', function() {
             assert(false, 'Need to write this test');
         });
 
