@@ -214,16 +214,32 @@ describe('Testing Receiver', function() {
             setTimeout(checkFn, 400);
         });
 
-        it('should connect to mongodb', function(done) {
-            assert(false, 'Need to write this test');
-        });
+        it('should store measurement from computation apps', function(done) {
+            var msg = {uuid: 'Spot', 
+                       latitude: 120, 
+                       longitude: 122, 
+                       radius: 120, 
+                       timestamp: new Date().getTime()},
+                receivedMsg = false,
+                oldLen,
+                checkFn = function() {
+                    app.MeasurementModel.find(function(err, models) {
+                        assert(models.length === oldLen+1, 'Measurement not in database!');
+                        done();
+                    });
+                };
 
-        it('should store measurement from computation apps', function() {
-            assert(false, 'Need to write this test');
+            setTimeout(function() {
+                app.MeasurementModel.find(function(err, models) {
+                    oldLen = models.length;
+                    computationPub.send('StoreMeasurement'+JSON.stringify(msg));
+                    setTimeout(checkFn, 100);
+                });
+            }, 100);
         });
 
         // Check if it is a pet
-        it.only('should not accept measurement with invalid structure', function(done) {
+        it('should not accept measurement with invalid structure', function(done) {
             var msg = {uuid: 'Spot',
                        latitude: 12,
                        longitude: 120,
@@ -246,10 +262,6 @@ describe('Testing Receiver', function() {
         });
 
         it('should not accept measurement whose target is not marked as missing in the db', function() {
-            assert(false, 'Need to write this test');
-        });
-
-        it('should verify that the measurement target is marked as missing in the db', function() {
             assert(false, 'Need to write this test');
         });
 
