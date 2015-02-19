@@ -4,6 +4,7 @@
 var assert = require('assert'),
     //Message = require('../lib/message'),
     zeromq = require('zmq'),
+    _ = require('lodash'),
     http = require('http'),
     fs = require('fs'),
     Receiver = require('../lib/Receiver.js'),
@@ -191,7 +192,7 @@ describe('Testing Receiver', function() {
         });
 
         it('should update subscriber socket on config update', function(done) {
-            var config = defaultConfig,
+            var config = _.clone(defaultConfig),
                 msg = {uuid: 'Einstein', 
                        latitude: 120, 
                        longitude: 122, 
@@ -207,7 +208,9 @@ describe('Testing Receiver', function() {
 
             p1App.on('message', function(data) {
                 assert(data.toString().indexOf(999) > -1, 'Receiver subscribed to old computation publisher');  // p2App doesn't care about Fido
-                done();
+                // Set the storageRequestBroker back to the default
+                fs.writeFileSync(testConfigFileName, JSON.stringify(defaultConfig));
+                setTimeout(done, 100);  // Give it time to reset
             });
 
             config.storageRequestBroker = 'tcp://127.0.0.1:2099';
@@ -235,9 +238,9 @@ describe('Testing Receiver', function() {
                 app.MeasurementModel.find(function(err, models) {
                     oldLen = models.length;
                     computationPub.send('StoreMeasurement'+JSON.stringify(msg));
-                    setTimeout(checkFn, 200);
+                    setTimeout(checkFn, 100);
                 });
-            }, 100);
+            }, 50);
         });
 
         // Check if it is a pet
