@@ -86,8 +86,10 @@ describe('Testing Receiver', function() {
 
             // Modify postOptions
             var post_data = {uuid: '134asd443',
-                latitude: 81.218, 
-                longitude: 123.2112};
+                             latitude: 81.218, 
+                             longitude: 123.2112,
+                             radius: 10,
+                             timestamp: new Date().getTime()};
             postOptions.headers = {'Content-Type': 'application/json',
                     'Content-Length': JSON.stringify(post_data).length};
 
@@ -111,7 +113,7 @@ describe('Testing Receiver', function() {
             });
 
             // Modify postOptions
-            var post_data = 'uuid=134asd443&latitude=81.218&longitude=123.2112';
+            var post_data = 'uuid=134asd443&latitude=81.218&longitude=123.2112&radius=10&timestamp=100293843';
             postOptions.headers = {'Content-Type': 'application/x-www-form-urlencoded',
                 'Content-Length': post_data.length};
 
@@ -233,7 +235,7 @@ describe('Testing Receiver', function() {
                 app.MeasurementModel.find(function(err, models) {
                     oldLen = models.length;
                     computationPub.send('StoreMeasurement'+JSON.stringify(msg));
-                    setTimeout(checkFn, 100);
+                    setTimeout(checkFn, 200);
                 });
             }, 100);
         });
