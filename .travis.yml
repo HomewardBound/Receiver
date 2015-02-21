@@ -3,7 +3,9 @@ services: mongodb
 node_js:
 - '0.11'
 - '0.10'
-install: sudo apt-get install libzmq3-dev
+install: 
+    - sudo apt-get install libzmq3-dev
+    - npm install
 after_success: ./merge.sh $GIT_USER $GIT_PASS
 env:
   global:
