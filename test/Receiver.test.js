@@ -128,7 +128,7 @@ describe('Testing Receiver', function() {
                     'Content-Length': JSON.stringify(post_data).length};
 
                     var post_req = http.request(postOptions, function(res) {
-                        setTimeout(checkMsgReceived, 100);
+                        setTimeout(checkMsgReceived, 300);
                     });
                     post_req.write(JSON.stringify(post_data));
                     post_req.end();
