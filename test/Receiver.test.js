@@ -13,7 +13,9 @@ var assert = require('assert'),
     testConfigFileName = __dirname + '/__config.test.js',
     calculationReq,
     postOptions,
-    receiver;
+    receiver,
+    MEASURED_UUID = 'IAmMeasured',
+    NOT_MEASURED_UUID = 'IAmNotMeasured';
 
 // Simulating related apps
 var createSubscriber = function(address, channel) {
@@ -29,18 +31,44 @@ var createPublisher = function(address) {
     return publisher;
 };
 
+var updateTestConfigOptions = function(config) {
+    var testEntities = '__testEntities',
+        testLocations = '__testLocations';
+
+    config.port = 8080;
+    config.entityCollection = testEntities;
+    config.locationCollection = testLocations;
+};
+
+var seedDatabase = function(app, seeds, callback) {
+    var count = 0,
+        cb = function(err, saved) {
+            if (err || !saved) {
+                console.error('Could not save measured entity: ', err);
+            }
+
+            if (++count === seeds.length) {
+                callback();
+            }
+        };
+
+    for (var i = seeds.length; i--;) {
+        app.database[app._itemsCollection].save(seeds[i], cb);
+    }
+};
+
 describe('Testing Receiver', function() {
     var defaultConfig,
         calcChannel,
         computationPub;
 
-    before(function() {
+    before(function(done) {
         // Create the test config
         // Get the default config
         defaultConfig = JSON.parse(fs.readFileSync(__dirname+'/../lib/config.default.js', 'utf-8'));
 
         // Change the port
-        defaultConfig.port = 8080;
+        updateTestConfigOptions(defaultConfig);
 
         // Save it to test file
         fs.writeFileSync(testConfigFileName, JSON.stringify(defaultConfig));
@@ -50,6 +78,11 @@ describe('Testing Receiver', function() {
         // Create the server with test configuration
         app = new Receiver(testConfigFileName);
         app.start();
+
+        // Store a measured entity in the database
+
+        var seeds = [{uuid: NOT_MEASURED_UUID}, {uuid: MEASURED_UUID, isMeasuring: true}];
+        seedDatabase(app, seeds, done);
 
     });
 
@@ -86,7 +119,7 @@ describe('Testing Receiver', function() {
             });
 
             // Modify postOptions
-            var post_data = {uuid: '134asd443',
+            var post_data = {uuid: MEASURED_UUID,
                              latitude: 81.218, 
                              longitude: 123.2112,
                              radius: 10,
@@ -114,7 +147,7 @@ describe('Testing Receiver', function() {
             });
 
             // Modify postOptions
-            var post_data = 'uuid=134asd443&latitude=81.218&longitude=123.2112&radius=10&timestamp=100293843';
+            var post_data = 'uuid='+MEASURED_UUID+'&latitude=81.218&longitude=123.2112&radius=10&timestamp=100293843';
             postOptions.headers = {'Content-Type': 'application/x-www-form-urlencoded',
                 'Content-Length': post_data.length};
 
@@ -166,6 +199,7 @@ describe('Testing Receiver', function() {
                 receivedMsg = false,
                 p1App = createSubscriber(app.config.notifyBroker, 'Spot');
 
+            console.log('listening for notification on '+app.config.notifyBroker);
             p1App.on('message', function(data) {
                 assert(true);  // p2App doesn't care about Fido
                 done();
@@ -207,7 +241,8 @@ describe('Testing Receiver', function() {
                 };
 
             p1App.on('message', function(data) {
-                assert(data.toString().indexOf(999) > -1, 'Receiver subscribed to old computation publisher');  // p2App doesn't care about Fido
+                assert(data.toString().indexOf(999) > -1, 
+                    'Receiver subscribed to old computation publisher');  // p2App doesn't care about Fido
                 // Set the storageRequestBroker back to the default
                 fs.writeFileSync(testConfigFileName, JSON.stringify(defaultConfig));
                 setTimeout(done, 100);  // Give it time to reset
@@ -228,16 +263,18 @@ describe('Testing Receiver', function() {
                 receivedMsg = false,
                 oldLen,
                 checkFn = function() {
-                    app.MeasurementModel.find(function(err, models) {
+                    app.database[app._locationCollection].find(function(err, models) {
                         assert(models.length === oldLen+1, 'Measurement not in database!');
+                        console.log('Found '+oldLen);
                         done();
                     });
                 };
 
             setTimeout(function() {
-                app.MeasurementModel.find(function(err, models) {
+                app.database[app._locationCollection].find(function(err, models) {
                     oldLen = models.length;
                     computationPub.send('StoreMeasurement'+JSON.stringify(msg));
+                    console.log('Found '+oldLen+'('+app._locationCollection+')');
                     setTimeout(checkFn, 100);
                 });
             }, 50);
@@ -263,11 +300,40 @@ describe('Testing Receiver', function() {
         });
 
         it('should not accept measurement whose target doesn\'t exist in the db', function() {
-            assert(false, 'Need to write this test');
+            var post_data = {uuid: 'Spot',
+                             latitude: 81.218, 
+                             longitude: 123.2112,
+                             radius: 10,
+                             timestamp: new Date().getTime()},
+                post_req;
+
+            postOptions.headers = {'Content-Type': 'application/json',
+                    'Content-Length': JSON.stringify(post_data).length};
+
+            post_req = http.request(postOptions, function(res) {
+                assert(res.statusCode === 204);
+            });
+            post_req.write(JSON.stringify(post_data));
+            post_req.end();
+
         });
 
-        it('should not accept measurement whose target is not marked as missing in the db', function() {
-            assert(false, 'Need to write this test');
+        it('should not accept measurement whose target is not marked as measuring in the db', function() {
+            var post_data = {uuid: NOT_MEASURED_UUID,
+                             latitude: 81.218, 
+                             longitude: 123.2112,
+                             radius: 10,
+                             timestamp: new Date().getTime()},
+                post_req;
+
+            postOptions.headers = {'Content-Type': 'application/json',
+                    'Content-Length': JSON.stringify(post_data).length};
+
+            post_req = http.request(postOptions, function(res) {
+                assert(res.statusCode === 204);
+            });
+            post_req.write(JSON.stringify(post_data));
+            post_req.end();
         });
 
     });
