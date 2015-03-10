@@ -7,6 +7,7 @@ var assert = require('assert'),
     _ = require('lodash'),
     http = require('http'),
     fs = require('fs'),
+    mongoose = require('mongoose'),
     Receiver = require('../lib/Receiver.js'),
 
     app,
@@ -20,6 +21,7 @@ var createSubscriber = function(address, channel) {
     var subscriber = zeromq.socket('sub');
     subscriber.connect(address);
     subscriber.subscribe(channel);
+    console.log('Subscriber created on ' + address + ' channel: '+channel);
     return subscriber;
 };
 
@@ -51,6 +53,24 @@ describe('Testing Receiver', function() {
         app = new Receiver(testConfigFileName);
         app.start();
 
+        // Store dogs in the database
+        // This is an ugly way to create fixtures... FIXME
+        var db = require("mongojs").connect(app.config.mongoUrl, ['Dogs']);
+        db.Dogs.save({name: 'Spot', uuid: 'Spot', tracking: true}, function(err, saved) {
+            if (!err && saved) {
+                db.Dogs.save({name: 'Spot', uuid: 'Fido', tracking: true}, function(err, saved) {
+                    if (!err && saved) {
+                        db.Dogs.save({name: 'Spot', uuid: 'Einstein', tracking: true}, function(err, saved) {
+                            if (!err && saved) {
+                                db.Dogs.save({name: 'Spot', uuid: 'Rover', tracking: false}, function(err, saved) {
+                                    console.log('All dogs saved successfully!');
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
     });
 
     beforeEach(function() {
@@ -73,12 +93,12 @@ describe('Testing Receiver', function() {
             post_req.end();
         });
 
-        it('should pass incoming json measurements to computation apps', function(done) {
+        it.only('should pass incoming json measurements to computation apps', function(done) {
             var calcMsgReceived = false,
-            checkMsgReceived = function() {
-                assert(calcMsgReceived, 'Publish message not received');
-                done();
-            };
+                checkMsgReceived = function() {
+                    assert(calcMsgReceived, 'Publish message not received');
+                    done();
+                };
 
             var subscriber = createSubscriber(app.config.calcRequestBroker, calcChannel);
             subscriber.on('message', function(data) {
@@ -262,12 +282,40 @@ describe('Testing Receiver', function() {
             post_req.end();
         });
 
-        it('should not accept measurement whose target doesn\'t exist in the db', function() {
-            assert(false, 'Need to write this test');
+        it('should not accept measurement whose target doesn\'t exist in the db', function(done) {
+            var msg = {uuid: 'IDontExist',
+                       latitude: 12,
+                       longitude: 120,
+                       timestamp: new Date().getTime()},
+                post_req;
+
+            postOptions.headers = {'Content-Type': 'application/json',
+                    'Content-Length': JSON.stringify(msg).length};
+
+            post_req = http.request(postOptions, function(res) {
+                assert(res.statusCode !== 200);
+                done();
+            });
+            post_req.write(JSON.stringify(msg));
+            post_req.end();
         });
 
-        it('should not accept measurement whose target is not marked as missing in the db', function() {
-            assert(false, 'Need to write this test');
+        it('should not accept measurement whose target is not marked as missing in the db', function(done) {
+            var msg = {uuid: 'Rover',
+                       latitude: 12,
+                       longitude: 120,
+                       timestamp: new Date().getTime()},
+                post_req;
+
+            postOptions.headers = {'Content-Type': 'application/json',
+                    'Content-Length': JSON.stringify(msg).length};
+
+            post_req = http.request(postOptions, function(res) {
+                assert(res.statusCode !== 200);
+                done();
+            });
+            post_req.write(JSON.stringify(msg));
+            post_req.end();
         });
 
     });

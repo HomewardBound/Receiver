@@ -1,4 +1,9 @@
-var Receiver = require('./lib/app.js'),
-    app = new Receiver();
+'use strict';
 
-app.start();
+var throng = require('throng'),
+    Receiver = require('./lib/Receiver.js'),
+    start = function() {
+        new Receiver().start();
+    };
+
+throng(start);
