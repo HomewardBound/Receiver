@@ -3,11 +3,18 @@ services: mongodb
 node_js:
 - '0.12'
 - '0.11'
-install: 
-    - sudo apt-get install libzmq3-dev
-    - npm install
-after_success: ./merge.sh $GIT_USER $GIT_PASS
+install:
+- sudo apt-get install libzmq3-dev
+- npm install
+after_success: "./merge.sh $GIT_USER $GIT_PASS"
 env:
   global:
   - secure: RIP7HX9epudSTPIMq/PO2w0IVCRcBUi4B3zJSK5R0xWKzFsBTNTz8EM2UAXKBjO+mL9nlZZR7D//W9m00vM1b/0GmD7TR0T4OVC6aC1cx14fhRCleU/eYmdlNZa7JXGtAWcqUi6uvI/SGnyD1mGliobCmVqxSrI8KDDQA3tZ1wk=
   - secure: A2wOy7y3iZ8nTQyVQS+YNVqcwFNxQA/IGCjPqvVRrlk/sOndlhr/Due0mAZmpW5YFq5SU+eeUQPY3Hg1xi/tzpDB6ugoRWwg4N1PER2z6jusUMtfmTESQ082wxjPjzBSIb8TRbI1NcDuiR7fE4370ju9xKZxTxYtFzLk9H8sKA8=
+deploy:
+  provider: heroku
+  api_key:
+    secure: aIvKLoSz9/x5gSGepKyE3tkiubvhO3YltX1/CfIQLSMr7i14eBcXhovzPbagSyl5GVvzPYDxKbB25EvxQmMRM/vJdVduPFTt6WnRhhuGx3bo+9BuU8060CohGfaqd5DW6xA1pTFcDSs+B3zCcefyGZGyFbtBlzXCyUqGsGNzNPE=
+  app: hb-receiver
+  on:
+    repo: HomewardBound/Receiver
